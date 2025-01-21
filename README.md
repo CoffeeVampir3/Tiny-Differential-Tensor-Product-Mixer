@@ -3,7 +3,7 @@ A small language model using the bleeding edge in things and stuff.
 # The things:
 Tensor product attention: [Tensor Product Attention is All You Need](https://arxiv.org/abs/2501.06425)
 
-(Optional -- used in the Tensor product attention, hard to stabilize)
+(Optional -- can used in the Tensor product attention, hard to stabilize)
 Lightning attention: [Lightning Attention 1](https://arxiv.org/abs/2405.17381) || [Lightning Attention 2](https://arxiv.org/abs/2401.04658) || [Github](https://github.com/OpenNLPLab/lightning-attention)
 
 Differential Attention: [Differential Transformer](https://arxiv.org/abs/2410.05258) 
