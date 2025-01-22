@@ -2,12 +2,14 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import tokenmonster
+import sys
+from utils.trainutils import count_parameters_layerwise, load_checkpoint
 from models.model import WaifuLMUwU
 
 tokenizer = tokenmonster.load("englishcode-16000-balanced-v1")
 model = WaifuLMUwU(vocab_size=len(tokenizer), max_seq_length=1024)
 
-model.load_state_dict(torch.load('trained_model.pth'))
+load_checkpoint(model, None, sys.argv[1])
 model.eval()
 
 start_tokens = torch.tensor([[15]], dtype=torch.long)

@@ -10,7 +10,7 @@ from distributed_shampoo import AdamGraftingConfig, DistributedShampoo
 from cut_cross_entropy import linear_cross_entropy
 
 from models.model import WaifuLMUwU
-from utils.trainutils import count_parameters_layerwise
+from utils.trainutils import count_parameters_layerwise, save_checkpoint
 
 class JSONLDataset(Dataset):
     def __init__(self, directory_path, tokenizer, seq_length=1024, text_key="text", max_files=None):
@@ -112,6 +112,8 @@ def train_model(model, train_loader, optimizer, device, epochs=5):
         print(f'Perplexity: {epoch_ppl:.2f}')
         print(f'Total Batches Processed: {total_batches}\n')
         
+        save_checkpoint(model, optimizer, f'epoch_{epoch+1}.safetensors')
+        
 def main():
     BATCH_SIZE = 8
     SEQ_LENGTH = 1024
@@ -130,7 +132,7 @@ def main():
         tokenizer=tokenizer,
         seq_length=SEQ_LENGTH,
         text_key="text",
-        max_files=None
+        max_files=5
     )
     train_loader = DataLoader(
         dataset,
@@ -162,8 +164,6 @@ def main():
     count_parameters_layerwise(model)
 
     train_model(model, train_loader, optimizer, DEVICE, EPOCHS)
-
-    torch.save(model.state_dict(), 'trained_model.pth')
 
 if __name__ == "__main__":
     main()
