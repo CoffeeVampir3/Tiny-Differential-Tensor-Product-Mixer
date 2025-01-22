@@ -4,13 +4,13 @@ from torch.cuda.amp import autocast
 from torch.utils.data import Dataset, DataLoader
 import tokenmonster
 from tqdm import tqdm
-import math, os, sys, json, glob
+import math, os, sys, json, glob, time
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from distributed_shampoo import AdamGraftingConfig, DistributedShampoo
 from cut_cross_entropy import linear_cross_entropy
 
 from models.model import WaifuLMUwU
-from utils.trainutils import count_parameters_layerwise, save_checkpoint
+from utils.trainutils import count_parameters_layerwise, save_checkpoint, TBLogger
 
 class JSONLDataset(Dataset):
     def __init__(self, directory_path, tokenizer, seq_length=1024, text_key="text", max_files=None):
@@ -47,10 +47,13 @@ def train_model(model, train_loader, optimizer, device, epochs=5):
     criterion = nn.CrossEntropyLoss()
     scaler = torch.amp.GradScaler("cuda")
     
+    logger = TBLogger(log_dir=f'logs/run-{time.time()}')
+    
+    total_steps = len(train_loader) * epochs
     scheduler = CosineAnnealingLR(
         optimizer,
-        T_max=epochs,
-        eta_min=1e-5 
+        T_max=total_steps,
+        eta_min=5e-6 
     )
     
     model = torch.compile(
@@ -64,6 +67,7 @@ def train_model(model, train_loader, optimizer, device, epochs=5):
         }
     )
     
+    global_step = 0
     for epoch in range(epochs):
         running_loss = 0.0
         total_batches = 0
@@ -87,10 +91,12 @@ def train_model(model, train_loader, optimizer, device, epochs=5):
             scaler.scale(loss).backward()
             scaler.step(optimizer)
             scaler.update()
+            scheduler.step()
 
             # Update metrics - just add the loss itself
             running_loss += loss.item()
             total_batches += 1
+            global_step += 1
             avg_loss = running_loss / total_batches
             perplexity = math.exp(min(avg_loss, 100))
 
@@ -98,6 +104,15 @@ def train_model(model, train_loader, optimizer, device, epochs=5):
                 'loss': f'{avg_loss:.4f}',
                 'ppl': f'{perplexity:.2f}'
             })
+            
+            metrics = {
+                'loss': loss.item(),
+                'perplexity': perplexity,
+                'learning_rate': optimizer.param_groups[0]['lr'],
+                'batch_size': data.size(0)
+            }
+
+            logger.log(metrics, step=global_step, model=model)
 
             if batch_idx % 100 == 0:
                 print(f'\nBatch {batch_idx}/{len(train_loader)}: '
@@ -132,7 +147,7 @@ def main():
         tokenizer=tokenizer,
         seq_length=SEQ_LENGTH,
         text_key="text",
-        max_files=5
+        max_files=None
     )
     train_loader = DataLoader(
         dataset,
